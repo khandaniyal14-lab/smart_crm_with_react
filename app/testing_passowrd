@@ -1,0 +1,25 @@
+from passlib.context import CryptContext
+import sqlite3
+
+# Initialize bcrypt
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Choose a new password
+plain_password = "MyNewPassword123"
+hashed_password = pwd_context.hash(plain_password)
+print("Hashed password:", hashed_password)
+
+# Update the user in the SQLite database
+conn = sqlite3.connect("smart_crm.db")
+cursor = conn.cursor()
+
+cursor.execute("""
+    UPDATE users
+    SET hashed_password = ?
+    WHERE email = ?
+""", (hashed_password, "customer1@smartcrm.com"))
+
+conn.commit()
+conn.close()
+
+print("Password updated successfully!")

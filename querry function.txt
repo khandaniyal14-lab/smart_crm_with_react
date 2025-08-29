@@ -1,0 +1,7 @@
+in customer can ask about future querries
+which can be registered as leads from customer profile
+functional support types so customer when making complaint and leads can select that time its gets assigned to that type of employees 
+also register employees FST so it can be assigned
+FST editable by organization  
+
+customer options feedback closing rating 
