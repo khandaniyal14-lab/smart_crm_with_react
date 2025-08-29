@@ -10,6 +10,8 @@ from app.schemas.user import UserOut   # <-- import UserOut schema
 from app.models.user import User       # <-- import User model
 from app.api.v1.endpoints.deps import get_current_user ,require_roles
 from app.models.database import get_db
+from app.models.system import Organization  # main DB model
+from app.db import get_org_session           # dynamic org DB session
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.core.config import settings
 from pydantic import BaseModel
@@ -63,6 +65,8 @@ def register(
     
     # Determine organization_id
     org_id = current_user.organization_id if current_user.role == UserRole.ORG_ADMIN else user_data.org_id
+    org_id_str = str(org_id) if org_id is not None else None
+
 
     # Hash password
     hashed_password = get_password_hash(user_data.password)
@@ -81,7 +85,7 @@ def register(
         email=user_data.email,
         hashed_password=hashed_password,
         role=UserRole(user_data.role),
-        organization_id=org_id,
+        organization_id=org_id_str,
         is_active=True,
         must_change_password=True
     )
@@ -94,6 +98,7 @@ def register(
     first_name=new_user.first_name
     )
     db.refresh(new_user)
+    new_user.role = UserRole(new_user.role)
 
 
     return {"message": "User created successfully", "user_id": str(new_user.id)}
@@ -127,6 +132,21 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
          }
 
      }
+
+@router.post("/org-login")
+def org_login(org_name: str, email: str, password: str):
+    # Get org DB name from main DB
+    org = get_db.query(Organization).filter(Organization.name == org_name).first()
+    if not org:
+        raise HTTPException(404, "Organization not found")
+    
+    db = get_org_session(org.org_db_name)
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(401, "Invalid credentials")
+
+    token = create_access_token({"sub": user.id, "org_db": org.org_db_name})
+    return {"access_token": token, "token_type": "bearer"}
 
 
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.core.security import get_password_hash
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.models.database import get_db
@@ -11,27 +12,29 @@ router = APIRouter(prefix="/users", tags=["Users"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
 @router.post("/", response_model=UserRead)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Hash password
     hashed_pwd = get_password_hash(user.password)
+
+    # Convert organization_id to string or generate new UUID
     try:
         org_id = str(uuid.UUID(user.organization_id)) if user.organization_id else None
-    except ValueError:
-        # If invalid, generate a new UUID automatically
-        org_id = uuid.uuid4()
-    
+    except (ValueError, TypeError):
+        org_id = str(uuid.uuid4())
+
+    # Create new user
     db_user = User(
+        id=str(uuid.uuid4()),  # generate user ID as string UUID
         first_name=user.first_name,
         last_name=user.last_name,
         email=user.email,
         role=user.role,
-        organization_id= org_id,
+        organization_id=org_id,
         hashed_password=hashed_pwd,
-        is_active=user.is_active
+        is_active=True
     )
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

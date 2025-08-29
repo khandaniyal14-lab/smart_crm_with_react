@@ -12,9 +12,7 @@ class UserCreate(BaseModel):
     role: str
     organization_id: str
     is_active: bool
-    @validator("role")
-    def uppercase_role(cls, v):
-        return v.upper()
+    
 
 
 class UserLogin(BaseModel):
@@ -36,10 +34,16 @@ class UserRead(BaseModel):
     first_name: str
     last_name: str
     email: str
+    created_at: datetime
     role: UserRole
     organization_id: UUID | None
     is_active: bool
-    created_at: datetime
+    created_at: datetime | None
+    @validator("organization_id", pre=True, always=True)
+    def convert_org_id(cls, v):
+        if v is None:
+            return None
+        return UUID(str(v))
 
     class Config:
         orm_mode = True
